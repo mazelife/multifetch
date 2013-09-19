@@ -3,7 +3,7 @@ from selenium import webdriver
 
 class Downloader(object):
 
-    def __init__(self, driver="Chrome"):
+    def __init__(self, driver="PhantomJS"):
         driver = getattr(webdriver, driver, None)
         if not driver:
             raise ImportError("Could not import selenium.webdriver.{0}.".format(driver))
