@@ -1,11 +1,8 @@
-from bs4 import BeautifulSoup as Soup
 import codecs
 import os
 import re
 import sys
-import time
 import requests
-import logging
 import w3lib.url as urls
 import urlparse
 import multiprocessing as mproc
@@ -50,6 +47,8 @@ class URLWorker(mproc.Process):
 
             except Exception as e:
                 print e
+                import traceback
+                print traceback.format_exc()
                 sys.stdout.write('E')
                 continue
 
@@ -128,7 +127,7 @@ class FetchJob(object):
         self.whitelist = Reader(whitelist)
         self.tasks     = mproc.Queue()
         self.results   = mproc.Queue()
-        self.numprocs  = kwargs.get('numprocs', mproc.cpu_count() * 2)
+        self.numprocs  = kwargs.get('numprocs', mproc.cpu_count()) 
         self._workers  = []
 
     @property
