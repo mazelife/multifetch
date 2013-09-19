@@ -129,7 +129,6 @@ class FetchJob(object):
         self.tasks     = mproc.Queue()
         self.results   = mproc.Queue()
         self.numprocs  = kwargs.get('numprocs', mproc.cpu_count() * 2)
-        self.numprocs  = 3
         self._workers  = []
 
     @property
