@@ -59,4 +59,5 @@ if __name__ == "__main__":
         "7forallmankind.com%2Fpd%2Fp%2F2419.html"
     )
     d = Downloader()
-    #d.load(url)
+    d.load(url)
+    d.source()
