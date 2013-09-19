@@ -10,6 +10,9 @@ class Downloader(object):
         self._browser = driver()
         self._current_url = ""
 
+    def __del__(self):
+        self._browser.close()
+
     @property
     def annotated_source(self):
         """
@@ -24,6 +27,7 @@ class Downloader(object):
         """
         self._current_url = url
         self._browser.get(url)
+        self._current_url = self._browser.current_url
 
     @property
     def source(self):
@@ -31,6 +35,16 @@ class Downloader(object):
         The HTML source of the page.
         """
         return self._browser.page_source
+
+    @property
+    def load_succeeded(self):
+        if self._browser.current_url.startswith(u"data:text/html"):
+            return False
+        return True
+
+    @property
+    def url(self):
+        return self._current_url
 
 
 if __name__ == "__main__":
@@ -40,4 +54,4 @@ if __name__ == "__main__":
         "7forallmankind.com%2Fpd%2Fp%2F2419.html"
     )
     d = Downloader()
-    d.load(url)
+    #d.load(url)

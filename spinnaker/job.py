@@ -1,3 +1,5 @@
+from bs4 import BeautifulSoup as Soup
+import codecs
 import os
 import re
 import sys
@@ -8,9 +10,9 @@ import w3lib.url as urls
 import urlparse
 import multiprocessing as mproc
 
-from downloader import
+from downloader import Downloader
 from reader import Reader
-from bs4 import BeautifulSoup as Soup
+
 
 refresh = re.compile(r"^refresh$", re.I)
 content = re.compile(r"^(\d+);\s*url=(.+)$", re.I)
@@ -23,6 +25,7 @@ class URLWorker(mproc.Process):
         self.results = results
         super(URLWorker, self).__init__()
         sys.stdout.write('I')
+        self.downloader = Downloader()
 
     def run(self):
         while True:
@@ -32,10 +35,9 @@ class URLWorker(mproc.Process):
                     # Poison pill means to exit!
                     sys.stdout.write('Q')
                     break
-                response = self.fetch(task)
-                status   = response.status_code
+                status = self.fetch(task)
                 if status == 200:
-                    self.download(response)
+                    self.download()
                     sys.stdout.write('.')
                 elif status >= 300 and status <= 399:
                     sys.stdout.write('R')
@@ -54,25 +56,28 @@ class URLWorker(mproc.Process):
             sys.stdout.flush()
 
     def fetch(self, url):
-        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.65 Safari/537.36'}
-        response = self.refresh(requests.get(url, headers=headers))
-        import pdb; pdb.set_trace()
-        return response
+        self.downloader.load(url)
+        if not self.downloader.load_succeeded:
+            return 0
+        # It's necessary to do a second request to the URL to get a
+        # real status code. The reason is that it is impossible to 
+        # get a status code from selenium itself. This is a concious
+        # decision on the part of the selenium devs. http://bit.ly/nlMvIM.
+        # So, it's necessary to check the status of the last URL in the 
+        # headless browser to make sure we are not saving a 3/4/500 page. 
+        headers = {'User-Agent': (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_4) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/2"
+            "9.0.1547.65 Safari/537.36"
+        )}
+        response = requests.head(self.downloader.url, headers=headers)
+        # Per the HTTP spec, all webservers are required to support HEAD
+        # however, some do not. A second GET request should be very rare.
+        if response.status_code == 501:
+            response = requests.get(self.downloader.url, headers=headers)
+        return response.status_code
 
-    def refresh(self, response):
-        """
-        Checks if there is a meta "refresh" tag in the 200 result.
-        """
-        html = Soup(response.text, "lxml")
-        meta = html.find('meta', attrs={"http-equiv":refresh})
-
-        if meta:
-            attr = content.match(meta['content'])
-            if attr:
-                wait, url = attr.groups()
-                time.sleep(int(wait))
-                return self.fetch(url)
-        return response
+        
 
     def filededup(self, path, count=0):
         # This is the easy case- no duplication.
@@ -92,8 +97,8 @@ class URLWorker(mproc.Process):
 
         return self.filededup(os.path.join(dirp, name), count)
 
-    def download(self, response):
-        safe_url = urls.safe_download_url(response.url)
+    def download(self):
+        safe_url = urls.safe_download_url(self.downloader.url)
         scheme, netloc, path, query, _ = urlparse.urlsplit(safe_url)
         path = os.path.join(self.htdocs, netloc, path[1:])
 
@@ -110,8 +115,9 @@ class URLWorker(mproc.Process):
         # Increment duplication
         path = self.filededup(path)
 
-        with open(path, 'w') as out:
-            out.write(response.text.encode(response.encoding))
+        with codecs.open(path, 'w', encoding="utf-8") as out:
+            out.write(self.downloader.annotated_source)
+
 
 class FetchJob(object):
 
@@ -123,6 +129,7 @@ class FetchJob(object):
         self.tasks     = mproc.Queue()
         self.results   = mproc.Queue()
         self.numprocs  = kwargs.get('numprocs', mproc.cpu_count() * 2)
+        self.numprocs  = 3
         self._workers  = []
 
     @property
