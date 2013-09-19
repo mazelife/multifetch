@@ -1,13 +1,15 @@
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 
 
 class Downloader(object):
 
-    def __init__(self, driver="PhantomJS"):
+    def __init__(self, driver="PhantomJS", timeout=30):
         driver = getattr(webdriver, driver, None)
         if not driver:
             raise ImportError("Could not import selenium.webdriver.{0}.".format(driver))
         self._browser = driver()
+        self._browser.set_page_load_timeout(timeout)
         self._current_url = ""
 
     def __del__(self):
@@ -26,7 +28,10 @@ class Downloader(object):
         Load the given url into the selenium browser.
         """
         self._current_url = url
-        self._browser.get(url)
+        try:
+            self._browser.get(url)
+        except TimeoutException:
+            pass
         self._current_url = self._browser.current_url
 
     @property
