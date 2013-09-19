@@ -31,7 +31,7 @@ class Downloader(object):
         try:
             self._browser.get(url)
         except TimeoutException:
-            pass
+            self._current_url = None
         self._current_url = self._browser.current_url
 
     @property
@@ -43,7 +43,7 @@ class Downloader(object):
 
     @property
     def load_succeeded(self):
-        if self._browser.current_url.startswith(u"data:text/html"):
+        if not self.url or self.url.startswith(u"data:text/html"):
             return False
         return True
 
