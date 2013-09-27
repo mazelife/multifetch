@@ -1,5 +1,6 @@
 import os
 import codecs
+from urllib2 import URLError
 import urlparse
 
 import w3lib.url as urls
@@ -8,7 +9,7 @@ from selenium.common.exceptions import TimeoutException
 
 class Downloader(object):
 
-    def __init__(self, htdocs, driver="PhantomJS", timeout=30):
+    def __init__(self, htdocs, driver="Chrome", timeout=30):
         self.htdocs = htdocs
 
         self._driver  = driver
@@ -17,14 +18,25 @@ class Downloader(object):
         self._current_url = ""
 
     def __del__(self):
-        self._browser.quit()
+        self._destroy_browser()
 
     def _create_browser(self, driver=None):
+        """
+        Return a new browser object using the specified driver.
+        """
         driver = driver or self._driver
         driver = getattr(webdriver, driver, None)
         if not driver:
             raise ImportError("Could not import selenium.webdriver.{0}.".format(driver))
         return driver()
+
+    def _destroy_browser():
+        """
+        Quit the current browser and allow the object to be gc'd.
+        """
+        if self._browser:
+            self._browser.quit()
+            self._browser = None
 
     @property
     def annotated_source(self):
@@ -32,18 +44,24 @@ class Downloader(object):
         The HTML source with an added comment preceeding
         everything containing the URL of the page.
         """
-        return "".join(("<!-- ", self._current_url, " -->", self.source))
+        return "".join(("<!-- ", self._current_url, " -->\n", self.source))
 
     def load(self, url):
         """
         Load the given url into the selenium browser.
         """
+        if not self._browser:
+            self._browser = self._create_browser(driver)
         self._current_url = url
         try:
             self._browser.get(url)
         except TimeoutException:
-            self._browser.quit()
             self._current_url = None
+        except URLError:  # Selenium has lost contact with the web browser.
+            print "Browser crapped out..."
+            self._destroy_browser()
+            self.load(url)
+            return
         self._current_url = self._browser.current_url
 
     @property

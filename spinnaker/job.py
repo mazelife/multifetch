@@ -1,6 +1,7 @@
 import sys
 import time
 import requests
+from requests.exceptions import ConnectionError
 import multiprocessing as mproc
 
 from downloader import Downloader
@@ -62,7 +63,10 @@ class URLWorker(mproc.Process):
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/2"
             "9.0.1547.65 Safari/537.36"
         )}
-        response = requests.head(self.downloader.url, headers=headers)
+        try:
+            response = requests.head(self.downloader.url, headers=headers)
+        except ConnectionError:
+            return 0
         # Per the HTTP spec, all webservers are required to support HEAD
         # however, some do not. A second GET request should be very rare.
         if response.status_code == 501:
@@ -80,6 +84,7 @@ class FetchJob(object):
         self.tasks     = mproc.Queue()
         self.results   = mproc.Queue()
         self.numprocs  = kwargs.get('numprocs', mproc.cpu_count())
+        self.numprocs  = 4
         self._workers  = []
 
     @property
