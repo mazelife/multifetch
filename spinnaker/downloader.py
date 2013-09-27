@@ -9,7 +9,7 @@ from selenium.common.exceptions import TimeoutException
 
 class Downloader(object):
 
-    def __init__(self, htdocs, driver="Chrome", timeout=30):
+    def __init__(self, htdocs, driver="PhantomJS", timeout=30):
         self.htdocs = htdocs
 
         self._driver  = driver
@@ -30,7 +30,7 @@ class Downloader(object):
             raise ImportError("Could not import selenium.webdriver.{0}.".format(driver))
         return driver()
 
-    def _destroy_browser():
+    def _destroy_browser(self):
         """
         Quit the current browser and allow the object to be gc'd.
         """
@@ -51,7 +51,7 @@ class Downloader(object):
         Load the given url into the selenium browser.
         """
         if not self._browser:
-            self._browser = self._create_browser(driver)
+            self._browser = self._create_browser(self._driver)
         self._current_url = url
         try:
             self._browser.get(url)
@@ -119,6 +119,7 @@ class Downloader(object):
 
         with codecs.open(path, 'w', encoding="utf-8") as out:
             out.write(self.annotated_source)
+        return path
 
 
 if __name__ == "__main__":

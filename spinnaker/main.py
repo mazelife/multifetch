@@ -7,7 +7,7 @@ from job import FetchJob
 from reader import Reader
 
 @baker.command
-def fetch(whitelist, htdocs=None, verbose=True):
+def fetch(whitelist, htdocs=None, log=None, verbose=True):
     """
     Goes through a whitelist file and fetches them to disk.
 
@@ -16,6 +16,7 @@ def fetch(whitelist, htdocs=None, verbose=True):
 
     :param whitelist: The path to a TSV whitelist on disk.
     :param htdocs: The path to store the downloads
+    :param log: Where to write the frontier file.
     :param verbose: Print verbosity to disk!
     """
 
@@ -29,16 +30,19 @@ def fetch(whitelist, htdocs=None, verbose=True):
         if verbose:
             print "Making directory '%s'" % htdocs
         os.makedirs(htdocs)
-
+    # Deal with the frontier file.        
+    frontier = log or os.path.join(os.getcwd(), 'frontier.csv')
+    if not os.path.isdir(os.path.dirname(frontier)):
+        if verbose:
+            print "Invalid log path: %s" % frontier
     # Validate the Whitelist
     if validate(whitelist):
         if verbose:
             print "Whitelist is valid! Beginning fetch..."
     else:
         return
-
     # Execute the fetcher
-    job = FetchJob(whitelist, htdocs)
+    job = FetchJob(whitelist, htdocs, frontier)
     job.execute()
 
 @baker.command
