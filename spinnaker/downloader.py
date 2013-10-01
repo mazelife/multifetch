@@ -1,11 +1,16 @@
-import os
+import base64
 import codecs
+import os
+import re
+import string
 from urllib2 import URLError
 import urlparse
 
-import w3lib.url as urls
+import pyhash
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
+import w3lib.url as urls
+
 
 class Downloader(object):
 
@@ -16,6 +21,10 @@ class Downloader(object):
         self._browser = self._create_browser(driver)
         self._browser.set_page_load_timeout(timeout)
         self._current_url = ""
+        self._hasher = pyhash.murmur2_x64_64a()
+        self._filename_translation = string.maketrans("/=", "_-")
+        self._trailing_dash = re.compile("[-]+$")
+
 
     def __del__(self):
         self._destroy_browser()
@@ -37,14 +46,6 @@ class Downloader(object):
         if self._browser:
             self._browser.quit()
             self._browser = None
-
-    @property
-    def annotated_source(self):
-        """
-        The HTML source with an added comment preceeding
-        everything containing the URL of the page.
-        """
-        return "".join(("<!-- ", self._current_url, " -->\n", self.source))
 
     def load(self, url):
         """
@@ -81,23 +82,20 @@ class Downloader(object):
     def url(self):
         return self._current_url
 
-    def filededup(self, path, count=0):
-        # This is the easy case- no duplication.
+    def get_file_name(self, path):
+        # This is the easy case- no duplication, file name can stay as-is.
         if not os.path.exists(path):
             return path
-
-        # Set up work variables
-        count     += 1
+        # Use the murmur hash algorithm to get a 64-bit hash of the page's 
+        # contents. Base 64 encode this and translate filename-unsafe chars.
         dirp, name = os.path.split(path)
-        root, ext  = os.path.splitext(name)
-
-        # Ensure a number hasn't already been added to the name
-        if count > 1 and '-' in root and root[-1].isdigit():
-            root = '-'.join(root.split('-')[:-1])
-
-        name = "%s-%i%s" % (root, count, ext)
-
-        return self.filededup(os.path.join(dirp, name), count)
+        _, ext  = os.path.splitext(name)
+        page_hash  = self._hasher(self.source)
+        root = base64.b64encode(str(page_hash))
+        root = root.translate(self._filename_translation)
+        root = self._trailing_dash.sub("", root)
+        filename = "".join([root, ext])
+        return os.path.join(dirp, filename)
 
     def write(self):
         safe_url = urls.safe_download_url(self.url)
@@ -114,11 +112,11 @@ class Downloader(object):
         if not os.path.exists(pathdir):
             os.makedirs(pathdir)
 
-        # Increment duplication
-        path = self.filededup(path)
+        # Handle file naming.
+        path = self.get_file_name(path) 
 
         with codecs.open(path, 'w', encoding="utf-8") as out:
-            out.write(self.annotated_source)
+            out.write(self.source)
         return path
 
 

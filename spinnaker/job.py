@@ -40,11 +40,10 @@ class URLWorker(mproc.Process):
                     sys.stdout.write('?')
             except (KeyboardInterrupt, SystemExit):
                 break
-            except Exception as e:
+            except Exception as e:               
                 sys.stdout.write('E')
-                _, _, tb = sys.exc_info()
                 import traceback
-                traceback.print_tb(tb)
+                traceback.print_exc(None, sys.stderr)
                 break
 
             sys.stdout.flush()
