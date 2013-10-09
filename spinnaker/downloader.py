@@ -15,7 +15,7 @@ import w3lib.url as urls
 
 class Downloader(object):
 
-    def __init__(self, htdocs, driver="Chrome", timeout=30):
+    def __init__(self, htdocs, driver="PhantomJS", timeout=30):
 
         self.htdocs = htdocs
         self._driver  = driver
