@@ -9,14 +9,15 @@ import urlparse
 import pyhash
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 import w3lib.url as urls
 
 
 class Downloader(object):
 
-    def __init__(self, htdocs, driver="PhantomJS", timeout=30):
-        self.htdocs = htdocs
+    def __init__(self, htdocs, driver="Chrome", timeout=30):
 
+        self.htdocs = htdocs
         self._driver  = driver
         self._browser = self._create_browser(driver)
         self._browser.set_page_load_timeout(timeout)
@@ -29,15 +30,22 @@ class Downloader(object):
     def __del__(self):
         self._destroy_browser()
 
-    def _create_browser(self, driver=None):
+    def _create_browser(self, driver_name=None):
         """
         Return a new browser object using the specified driver.
         """
-        driver = driver or self._driver
-        driver = getattr(webdriver, driver, None)
+
+        driver_name = driver_name or self._driver
+        driver = getattr(webdriver, driver_name, None)
         if not driver:
-            raise ImportError("Could not import selenium.webdriver.{0}.".format(driver))
-        return driver()
+            raise ImportError("Could not import selenium.webdriver.{0}.".format(driver_name))
+        desired_capabilities = dict(getattr(DesiredCapabilities, driver_name.upper()))
+        usr_agent = "{0}.page.settings.userAgent".format(driver_name.lower())
+        desired_capabilities[usr_agent] = (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_5) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/30.0.1599.66 Safari/537.36"
+        )
+        return driver(desired_capabilities=desired_capabilities)
 
     def _destroy_browser(self):
         """
@@ -126,7 +134,6 @@ if __name__ == "__main__":
         "offerid=256004.2419&type=15&murl=http%3A%2F%2Fwww."
         "7forallmankind.com%2Fpd%2Fp%2F2419.html"
     )
-    d = Downloader('../htdocs/')
-    d.load(url)
-    d.write()
-    d.source()
+    d = Downloader("../htdocs")
+    d._browser.get('http://httpbin.org/headers')
+    print(d._browser.page_source)
