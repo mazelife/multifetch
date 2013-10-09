@@ -81,6 +81,14 @@ class Downloader(object):
         return self._browser.page_source
 
     @property
+    def annotated_source(self):
+        """
+        The HTML source with an added comment preceeding
+        everything containing the URL of the page.
+        """
+        return "".join(("<!-- ", self._current_url, " -->\n", self.source))
+
+    @property
     def load_succeeded(self):
         if not self.url or self.url.startswith(u"data:text/html"):
             return False
@@ -98,7 +106,7 @@ class Downloader(object):
         # contents. Base 64 encode this and translate filename-unsafe chars.
         dirp, name = os.path.split(path)
         _, ext  = os.path.splitext(name)
-        page_hash  = self._hasher(self.source)
+        page_hash  = self._hasher(self.annotated_source)
         root = base64.b64encode(str(page_hash))
         root = root.translate(self._filename_translation)
         root = self._trailing_dash.sub("", root)
@@ -124,7 +132,7 @@ class Downloader(object):
         path = self.get_file_name(path) 
 
         with codecs.open(path, 'w', encoding="utf-8") as out:
-            out.write(self.source)
+            out.write(self.annotated_source)
         return path
 
 
